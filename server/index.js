@@ -4,7 +4,7 @@ const cors = require('cors');
 const { Server } = require('socket.io');
 const generateRoomCode = () => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const codeLength = 3; // Длина кода комнаты
+  const codeLength = 3; 
   let code = '';
 
   for (let i = 0; i < codeLength; i++) {

@@ -6,7 +6,7 @@ import React, { useEffect } from 'react';
     import User from './user';
     
     
-    const socket = io.connect('http://192.168.1.20:5005');
+    const socket = io.connect('http://192.168.1.26:5005');
     
     const MyComponent = () => {
     

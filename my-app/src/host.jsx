@@ -8,172 +8,155 @@ const Host = ({ socket }) => {
     const [wordsArePrepared, setWordsPrepared] = useState(false);
     const [text, setText] = useState('');
     const [words, setWords] = useState([]);
-
     const [code, setCode] = useState('');
     const [wordsArray, setWordsArray] = useState([]);
+    const [wordsCloud, setWordsCloud] = useState([]);
+    const [Messages, setMessages] = useState([]);
+    const [userWordCounts, setUserWordCounts] = useState([]);
 
-    const initialWords = [
-        
-    ];
-    const [wordsCloud, setWordsCloud] = useState(initialWords);
     const handleChange = (event) => {
-        setText(event.target.value); 
+        setText(event.target.value.toLowerCase());
     };
-    
-    const [Messages, setMessages] = 
-    useState([
- 
-     ])
-     useEffect(() => {
-      
+
+    useEffect(() => {
         socket.on("Message", (data) => {
-            console.log(data.message);
             setMessages(prevMessages => [...prevMessages, data]);
         });
-    
-        socket.on("NewSuggestedWord", (data) => {
-           
-            setWords(prevWords => {
-            
-                const updatedWords = [...prevWords];
-        
-                const existingIndex = updatedWords.findIndex(item => item.name === data.name);
-        
-                if (existingIndex !== -1) {
 
-                    if (!updatedWords[existingIndex].words.includes(data.word)) {
-                        updatedWords[existingIndex].words.push(data.word);
+        socket.on("NewSuggestedWord", (data) => {
+            setWords(prevWords => {
+                const updatedWords = [...prevWords];
+                const existingIndex = updatedWords.findIndex(item => item.name === data.name);
+
+                if (existingIndex !== -1) {
+                    const updatedWord = data.word.trim().toLowerCase();
+                    if (!updatedWords[existingIndex].words.includes(updatedWord)) {
+                        updatedWords[existingIndex].words.push(updatedWord);
                     }
                 } else {
-                   
-                    const newWordObject = { name: data.name, words: [data.word] };
+                    const newWordObject = { name: data.name, words: [data.word.trim().toLowerCase()], from: 'client' };
                     updatedWords.push(newWordObject);
                 }
-        
+
                 return updatedWords;
             });
         });
-        
-        
-    
+
         socket.on("GetRoomCode", (data) => {
-            console.log('test');
             setCode(data);
         });
-    
-       
+
         return () => {
             socket.off("Message");
             socket.off("NewSuggestedWord");
             socket.off("GetRoomCode");
         };
-    }, []); 
-    
-   
-    useEffect(() => {
+    }, []);
 
-        const wordsMap = {};
-    
-    
+    useEffect(() => {
+        const wordsMap = [];
+
         words.forEach(item => {
             item.words.forEach(word => {
-               if(text.includes(word)){
-
-                   if (wordsMap[word]) {
-                      
-                       wordsMap[word]++;
-                   } else {
-                     
-                       wordsMap[word] = 1;
-                   }
-               }
+                if (text.includes(word)) {
+                    wordsMap.push({ text: word, value: 1, from: item.from });
+                }
             });
         });
-    
-       
-        const newWordsCloud = Object.entries(wordsMap).map(([word, count]) => ({
-            text: word,
-            value: count
-        }));
-    
-        
-        setWordsCloud(newWordsCloud);
-    }, [words]);
-   
 
-
-    const [userWordCounts, setUserWordCounts] = useState([]);
+        setWordsCloud(wordsMap);
+    }, [words, text]);
 
     useEffect(() => {
-      
         const newUserWordCounts = [];
 
-       
         words.forEach(item => {
-           
             let userCount = 0;
-
-           
             item.words.forEach(word => {
-              
                 if (wordsArray.includes(word)) {
                     userCount++;
                 }
             });
 
-          
             newUserWordCounts.push({ name: item.name, count: userCount });
         });
 
-       
         setUserWordCounts(newUserWordCounts);
     }, [words, wordsArray]);
 
-    console.log(userWordCounts);
+    const generateColors = (words) => {
+        const colors = {};
+        words.forEach(word => {
+            if (word.from === 'client') {
+                const greenValue = Math.floor(Math.random() * (256 - 120) + 120);
+                const color = `rgb(0, ${greenValue}, 0)`;
+                colors[word.text] = color;
+            } else {
+                const redValue = Math.floor(Math.random() * (256 - 120) + 120);
+                const blueValue = Math.floor(Math.random() * (256 - 120) + 120);
+                const color = `rgb(${redValue}, 0, ${blueValue})`;
+                colors[word.text] = color;
+            }
+        });
 
- 
+        return colors;
+    };
 
-    const generateGreenColors = (count) => {
-        const greenColors = [];
-        for (let i = 0; i < count; i++) {
-          const greenValue = Math.floor(Math.random() * (256 - 120) + 120); // Генерируем случайное значение для компоненты G (зеленого цвета) в диапазоне от 45 до 255
-          const color = `rgb(0, ${greenValue}, 0)`; // Формируем строку RGB цвета, в которой красная и синяя компоненты равны 0
-          greenColors.push(color); // Добавляем цвет в массив
-        }
-        return greenColors;
-      };
+    const colorsMap = generateColors(wordsCloud);
+
+    const customOptions = {
+        rotations: 0,
+        fontSizes: [30, 30],
+        colors: Object.values(colorsMap),
+        enableTooltip: true,
+        deterministic: false,
+        fontFamily: 'impact',
+        fontSizes: [20, 60],
+        fontStyle: 'normal',
+        fontWeight: 'normal',
+        padding: 1,
+        rotationAngles: [0, 90],
+        scale: 'sqrt',
+        spiral: 'archimedean',
+        transitionDuration: 1000
+    };
 
     const handleNextClick = () => {
-        const newWordsArray = text.split(',').map(word => word.trim().toLocaleLowerCase());
+        const newWordsArray = text.split(',').map(word => word.trim().toLowerCase());
         setWordsArray(newWordsArray);
         socket.emit("createTheRoom");
-        console.log(newWordsArray); 
-        setWordsPrepared(true); 
+        setWordsPrepared(true);
     };
-    
-    
+
+    const showUnquessedWords = () => {
+        const guessedWordsSet = new Set(wordsCloud.map(word => word.text));
+        const unguessedWords = wordsArray.filter(word => !guessedWordsSet.has(word));
+        const updatedWordsCloud = unguessedWords.map(word => ({ text: word, value: 1, from: 'host' }));
+        setWordsCloud(prevWordsCloud => [...prevWordsCloud, ...updatedWordsCloud]);
+    };
+
     return (
         <div style={{ backgroundColor: "black", height: "100%", width: "100%" }}>
             {wordsArePrepared ? (
-                <div style={{width:"100%", height:"100%"}} >
+                <div style={{ width: "100%", height: "100%" }}>
                     <div className={styles.Hdr}>
-                        <div style={{ backgroundColor: "white", fontSize:"24pt", fontWeight:"600", borderRadius:"30px", padding:"5px", width:"150px" }}>{code}</div>
+                        <div style={{ backgroundColor: "white", fontSize: "24pt", fontWeight: "600", borderRadius: "30px", padding: "5px", width: "150px" }}>{code}</div>
                     </div>
-                    <div style={{display:"flex", width:"100%", height:"calc(100% - 46px)", flexDirection:"row"}}>
-                    <div style={{width:"400px",height:"calc(100% - 46px)"}}>
-
-                    <Chat Messages = {Messages}></Chat>
+                    <div style={{ display: "flex", width: "100%", height: "calc(100% - 46px)", flexDirection: "row" }}>
+                        <div style={{ width: "400px", height: "calc(100% - 46px)" }}>
+                            <Chat Messages={Messages}></Chat>
+                        </div>
+                        <div className={styles.Tree}>
+                            <div style={{ height: "400px", width: "calc(100% - 300px)" }}>
+                                <ReactWordcloud words={wordsCloud} options={customOptions} />
+                            </div>
+                        </div>
+                        <div></div>
                     </div>
-                    <div className={styles.Tree}><div style={{height:"400px", width:"calc(100% - 300px)"}}><ReactWordcloud words={wordsCloud} options={{ rotations: 0,  colors:generateGreenColors(35), fontSizes: [30, 30] }} /></div> </div>
-                    <div>
-
-                    </div>
-                    </div>
-                    <div style={{ backgroundColor:"black"}}>
+                    <div style={{ backgroundColor: "black" }}>
                         <LeaderBoard Leaders={userWordCounts}></LeaderBoard>
-
+                        <button onClick={showUnquessedWords} style={{ backgroundColor: "white", border: "none", padding: "5px 90px", margin: "20px" }}>Показать</button>
                     </div>
-                  
                 </div>
             ) : (
                 <div style={{ backgroundColor: "black", height: "100%", width: "100%", display: "flex", flexDirection: "column", justifyContent: "center" }}>
