@@ -13,6 +13,7 @@ const Host = ({ socket }) => {
     const [wordsCloud, setWordsCloud] = useState([]);
     const [Messages, setMessages] = useState([]);
     const [userWordCounts, setUserWordCounts] = useState([]);
+    const [unguessedWords, setUnguessedWords] = useState([]);
 
     const handleChange = (event) => {
         setText(event.target.value.toLowerCase());
@@ -88,14 +89,9 @@ const Host = ({ socket }) => {
         const colors = {};
         words.forEach(word => {
             if (word.from === 'client') {
-                const greenValue = Math.floor(Math.random() * (256 - 120) + 120);
-                const color = `rgb(0, ${greenValue}, 0)`;
-                colors[word.text] = color;
+                colors[word.text] = 'green';
             } else {
-                const redValue = Math.floor(Math.random() * (256 - 120) + 120);
-                const blueValue = Math.floor(Math.random() * (256 - 120) + 120);
-                const color = `rgb(${redValue}, 0, ${blueValue})`;
-                colors[word.text] = color;
+                colors[word.text] = 'purple';
             }
         });
 
@@ -107,7 +103,7 @@ const Host = ({ socket }) => {
     const customOptions = {
         rotations: 0,
         fontSizes: [30, 30],
-        colors: Object.values(colorsMap),
+        colors: wordsCloud.map(word => colorsMap[word.text] || 'black'),
         enableTooltip: true,
         deterministic: false,
         fontFamily: 'impact',
@@ -128,11 +124,11 @@ const Host = ({ socket }) => {
         setWordsPrepared(true);
     };
 
-    const showUnquessedWords = () => {
+    const showUnguessedWords = () => {
         const guessedWordsSet = new Set(wordsCloud.map(word => word.text));
-        const unguessedWords = wordsArray.filter(word => !guessedWordsSet.has(word));
-        const updatedWordsCloud = unguessedWords.map(word => ({ text: word, value: 1, from: 'host' }));
-        setWordsCloud(prevWordsCloud => [...prevWordsCloud, ...updatedWordsCloud]);
+        const unguessedWordsList = wordsArray.filter(word => !guessedWordsSet.has(word));
+        setUnguessedWords(unguessedWordsList);
+        socket.off("NewSuggestedWord");
     };
 
     return (
@@ -150,12 +146,22 @@ const Host = ({ socket }) => {
                             <div style={{ height: "400px", width: "calc(100% - 300px)" }}>
                                 <ReactWordcloud words={wordsCloud} options={customOptions} />
                             </div>
+                            {unguessedWords.length > 0 && (
+                                <div style={{ color: 'purple', marginTop: '20px' }}>
+                                    <strong>Неотгаданные слова:</strong>
+                                    <ul>
+                                        {unguessedWords.map((word, index) => (
+                                            <li key={index}>{word}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                         <div></div>
                     </div>
                     <div style={{ backgroundColor: "black" }}>
                         <LeaderBoard Leaders={userWordCounts}></LeaderBoard>
-                        <button onClick={showUnquessedWords} style={{ backgroundColor: "white", border: "none", padding: "5px 90px", margin: "20px" }}>Показать</button>
+                        <button onClick={showUnguessedWords} style={{ backgroundColor: "white", border: "none", padding: "5px 90px", margin: "20px" }}>Показать</button>
                     </div>
                 </div>
             ) : (
